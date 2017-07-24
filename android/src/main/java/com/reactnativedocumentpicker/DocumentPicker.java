@@ -23,6 +23,8 @@ import com.facebook.react.bridge.WritableMap;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.URL;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
@@ -35,6 +37,7 @@ import java.util.List;
 public class DocumentPicker extends ReactContextBaseJavaModule implements ActivityEventListener {
     private static final String NAME = "RNDocumentPicker";
     private static final int READ_REQUEST_CODE = 41;
+    private final ReactApplicationContext reactContext;
 
     private static class Fields {
         private static final String FILE_SIZE = "fileSize";
@@ -46,6 +49,7 @@ public class DocumentPicker extends ReactContextBaseJavaModule implements Activi
 
     public DocumentPicker(ReactApplicationContext reactContext) {
         super(reactContext);
+        this.reactContext = reactContext;
         reactContext.addActivityEventListener(this);
     }
 
@@ -106,6 +110,10 @@ public class DocumentPicker extends ReactContextBaseJavaModule implements Activi
 
         try {
             Uri uri = data.getData();
+            File file = createFileFromURI(uri);
+            String realPath  = file.getAbsolutePath();
+            uri = Uri.fromFile(file);
+            Log.d("AppFIle",uri.toString());
             callback.invoke(null, toMapWithMetadata(uri));
         } catch (Exception e) {
             Log.e(NAME, "Failed to read", e);
@@ -207,6 +215,37 @@ public class DocumentPicker extends ReactContextBaseJavaModule implements Activi
             channel.close();
         }
     }
+    /**
+     * Create a file from uri to allow image picking of image in disk cache
+     * (Exemple: facebook image, google image etc..)
+     *
+     * @doc =>
+     * https://github.com/nostra13/Android-Universal-Image-Loader#load--display-task-flow
+     *
+     * @param uri
+     * @return File
+     * @throws Exception
+     */
+    private File createFileFromURI(Uri uri) throws Exception {
+        File file = new File(reactContext.getExternalCacheDir(), "document-" + uri.getLastPathSegment());
+        InputStream input = reactContext.getContentResolver().openInputStream(uri);
+        OutputStream output = new FileOutputStream(file);
+
+        try {
+            byte[] buffer = new byte[4 * 1024];
+            int read;
+            while ((read = input.read(buffer)) != -1) {
+                output.write(buffer, 0, read);
+            }
+            output.flush();
+        } finally {
+            output.close();
+            input.close();
+        }
+
+        return file;
+    }
+
 
     private static String mimeTypeFromName(String absolutePath) {
         String extension = MimeTypeMap.getFileExtensionFromUrl(absolutePath);
