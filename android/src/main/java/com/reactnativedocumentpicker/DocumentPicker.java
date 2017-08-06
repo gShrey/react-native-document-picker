@@ -110,25 +110,26 @@ public class DocumentPicker extends ReactContextBaseJavaModule implements Activi
 
         try {
             Uri uri = data.getData();
+            Uri orignalUri = uri;
             File file = createFileFromURI(uri);
             String realPath  = file.getAbsolutePath();
             uri = Uri.fromFile(file);
             Log.d("AppFIle",uri.toString());
-            callback.invoke(null, toMapWithMetadata(uri));
+            callback.invoke(null, toMapWithMetadata(uri,orignalUri));
         } catch (Exception e) {
             Log.e(NAME, "Failed to read", e);
             callback.invoke(e.getMessage(), null);
         }
     }
 
-    private WritableMap toMapWithMetadata(Uri uri) {
+    private WritableMap toMapWithMetadata(Uri uri,Uri orignalUri) {
         WritableMap map;
         if(uri.toString().startsWith("/")) {
             map = metaDataFromFile(new File(uri.toString()));
         } else if (uri.toString().startsWith("http")) {
             map = metaDataFromUri(uri);
         } else {
-            map = metaDataFromContentResolver(uri);
+            map = metaDataFromContentResolver(orignalUri != null ? orignalUri : uri);
         }
 
         map.putString("uri", uri.toString());
